@@ -1,0 +1,48 @@
+My small hacked panel 2.0
+Originally based on fspanel by Peter Zelezny
+with some code from Docker  by Ben Jansens
+
+Heavily changed by me, Adam D. Ruppe, in 2007
+Ported to D by me in 2014.
+
+License: GPL
+Dependencies: simpledisplay.d and color.d from
+	      https://github.com/adamdruppe/arsd
+
+
+
+While it started with a small, customizable taskbar,
+this is now a bit bigger (the port to D kinda bloated
+the binary, oh well, but it will make new things easier
+to write so I think it is worth it, besides, my new computer
+can spare 200 KB) and not as easily changed.
+
+As I continue development, some customization ease will
+return, but it is still written for me and me alone. If it
+is useful to you, cool, and if not, oh well, I put it up here
+just for the heck of it rather than any practical purpose.
+
+
+Features include: window icons, workspace awareness, a clock,
+a small notification area, and a size+theme that works well
+on my screen. Minimal wasted screen space.
+
+Controls:
+
+left click lowers or raises and focuses a window.
+middle click temporarily moves a window to the left of the taskbar
+  (this is undone when you switch workspaces)
+right click closes a window. There is no confirmation btw.
+
+
+If you shade a window, it goes grey. Iconfiying a window makes it
+disappear entirely.
+
+The way I use X, I shade things when I don't care right now and iconify
+when I want them open, but totally out of the way - I can then retrieve
+them with the middle click menu on Blackbox.
+
+
+
+The taskbar also auto-hides on workspaces 6 and up. That's where I like
+to run full-screen VMs and don't need a Linux taskbar in the way.
