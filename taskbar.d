@@ -11,6 +11,12 @@
 	              https://github.com/adamdruppe/arsd
 *********************************************************/
 
+/*
+	I want to add notification support like
+	xfce4-notifyd but done with my own thing
+	so there's like an icon and a history.
+*/
+
 pragma(lib, "Xpm");
 import simpledisplay;
 
@@ -314,7 +320,7 @@ enum MAX_TASK_WIDTH = 145;//WINWIDTH
 enum ICONWIDTH = 16;
 enum ICONHEIGHT = 16;
 enum WINHEIGHT = 16;//24
-auto WINWIDTH() { return (scr_width); }
+auto WINWIDTH() { return (scr_width == 2560) ? 1280 : scr_width; }
 enum XPOS = 0;
 auto YPOS() { return (scr_height - WINHEIGHT); }
 enum FONT_NAME = "-*-lucida*-m*-r-*-*-12-*-*";
