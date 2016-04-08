@@ -18,7 +18,7 @@
 */
 
 pragma(lib, "Xpm");
-import simpledisplay;
+import arsd.simpledisplay;
 
 import core.stdc.stdlib;
 import core.stdc.string;
@@ -1211,7 +1211,7 @@ Shaded changed
 	}
 }
 
-extern(C)
+extern(C) @nogc nothrow
 int handle_error (Display * d, XErrorEvent * ev) {
 	// import core.stdc.stdio;
 	//printf("%s\n", text);
@@ -1252,6 +1252,8 @@ void main() {
 	xfd = ConnectionNumber (dd);
 	gui_sync ();
 
+	int lastSeconds = 0;
+
 	while (1) {
 		now = time (null);
 		lt = gmtime (&now);
@@ -1259,8 +1261,11 @@ void main() {
 		tv.tv_sec = 60 - lt.tm_sec;
 		FD_ZERO (&fd);
 		FD_SET (xfd, &fd);
-		if (select (xfd + 1, &fd, null, null, &tv) == 0)
+		// if last seconds is bigger, we must have wrapped around while processing events
+		if (lastSeconds > lt.tm_sec || select (xfd + 1, &fd, null, null, &tv) == 0) {
 			tb.drawClock();
+			lastSeconds = lt.tm_sec;
+		}
 
 		while (XPending (dd)) {
 			XNextEvent (dd, &ev);
