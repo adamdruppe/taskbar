@@ -1258,11 +1258,12 @@ void main() {
 		now = time (null);
 		lt = gmtime (&now);
 		tv.tv_usec = 0;
+		if(lastSeconds > lt.tm_sec)
+			tv.tv_sec = 0; // no timeout, we wrapped while processing events
 		tv.tv_sec = 60 - lt.tm_sec;
 		FD_ZERO (&fd);
 		FD_SET (xfd, &fd);
-		// if last seconds is bigger, we must have wrapped around while processing events
-		if (lastSeconds > lt.tm_sec || select (xfd + 1, &fd, null, null, &tv) == 0) {
+		if (select (xfd + 1, &fd, null, null, &tv) == 0) {
 			tb.drawClock();
 			lastSeconds = lt.tm_sec;
 		}
