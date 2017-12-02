@@ -526,7 +526,7 @@ void get_task_hinticon (task *tk) {
 }
 
 void get_task_netwmicon (task *tk) {
-	auto originalItems = 0;
+	arch_long originalItems = 0;
 	auto originalData =  cast(arch_ulong*) get_prop_data (tk.win, atom_NET_WM_ICON, XA_CARDINAL, &originalItems);
 	bool fallback = false;
 
