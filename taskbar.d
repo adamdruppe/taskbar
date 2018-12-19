@@ -364,7 +364,7 @@ enum ushort[] cols = [
 
 enum PALETTE_COUNT = cols.length / 3;
 
-arch_ulong palette[PALETTE_COUNT];
+arch_ulong[PALETTE_COUNT] palette;
 
 enum immutable(char*[]) atom_names = [
 	"_NET_CURRENT_DESKTOP",
@@ -388,7 +388,7 @@ enum immutable(char*[]) atom_names = [
 
 enum ATOM_COUNT = atom_names.length;
 
-Atom atoms[ATOM_COUNT];
+Atom[ATOM_COUNT] atoms;
 
 auto atom__NET_CURRENT_DESKTOP() { return atoms[0]; }
 auto atom__NET_CLIENT_LIST() { return atoms[1]; }
@@ -442,13 +442,13 @@ void * get_prop_data (Window win, Atom prop, Atom type, int *items) {
 
 	XGetWindowProperty (dd, win, prop, 0, 0x7fffffff, false, type, &type_ret, &format_ret, &items_ret, &after_ret, cast(void**) &prop_data);
 	if (items)
-		*items = items_ret;
+		*items = cast(int) items_ret;
 
 	return prop_data;
 }
 
 void set_foreground (int index) {
-	XSetForeground (dd, fore_gc, palette[index]);
+	XSetForeground (dd, fore_gc, cast(int) palette[index]);
 }
 
 void draw_line (taskbar *tb, int x, int y, int a, int b) {
@@ -526,13 +526,13 @@ void get_task_hinticon (task *tk) {
 }
 
 void get_task_netwmicon (task *tk) {
-	arch_long originalItems = 0;
+	int originalItems = 0;
 	auto originalData =  cast(arch_ulong*) get_prop_data (tk.win, atom_NET_WM_ICON, XA_CARDINAL, &originalItems);
 	bool fallback = false;
 
 	try_again:
 
-	int items = originalItems;
+	auto items = originalItems;
 	auto data = originalData;
 
 	if (data && items > 2) {
@@ -541,22 +541,22 @@ void get_task_netwmicon (task *tk) {
 
 		while(items > 0) {
 
-			int width = data[0];
-			int height = data[1];
+			int width = cast(int) data[0];
+			int height = cast(int) data[1];
 			items -= 2;
 			loc += 2;
 
 			if(fallback || (width == ICONWIDTH && height == ICONHEIGHT)) {
 
-				arch_ulong* rawData = cast(arch_ulong*) malloc(width * height * arch_long.sizeof);
-				auto rawDataLength = width * height * arch_long.sizeof;
+				int* rawData = cast(int*) malloc(width * height * int.sizeof);
+				auto rawDataLength = width * height * int.sizeof;
 				for(int i = 0; i < width * height; i++)
-					rawData[i] = data[loc + i];
+					rawData[i] = cast(int) data[loc + i];
 
 				immutable originalWidth = width;
 				immutable originalHeight = height;
 
-				XImage* handle = XCreateImage(dd, DefaultVisual(dd, DefaultScreen(dd)), 24, cast(int) ImageFormat.ZPixmap, 0, cast(ubyte*)rawData, width, height, 8, arch_ulong.sizeof*width);
+				XImage* handle = XCreateImage(dd, DefaultVisual(dd, DefaultScreen(dd)), 24, cast(int) ImageFormat.ZPixmap, 0, cast(ubyte*)rawData, width, height, 8, cast(int) (int.sizeof*width));
 				if(handle == null)
 					exit(1);
 
@@ -572,10 +572,10 @@ void get_task_netwmicon (task *tk) {
 					// the first one we see ought to be the smallest one btw, which is what we want - speed > quality
 
 					if(width > ICONWIDTH && height > ICONHEIGHT) {
-						auto bytes = (cast(ubyte*) rawData)[0 .. originalWidth * originalHeight * arch_ulong.sizeof];
+						auto bytes = (cast(ubyte*) rawData)[0 .. originalWidth * originalHeight * int.sizeof];
 
 						import imagescale;
-						downscaleImage(bytes, originalWidth, originalHeight, ICONWIDTH, ICONHEIGHT, arch_ulong.sizeof);
+						downscaleImage(bytes, originalWidth, originalHeight, ICONWIDTH, ICONHEIGHT, int.sizeof);
 
 						width = ICONWIDTH;
 						height = ICONHEIGHT;
@@ -675,11 +675,12 @@ enum STATE_DEMANDS_ATTENTION = 8;
 
 arch_ulong get_state(Window win) {
 	Atom * data;
-	int items,a;
-	arch_ulong state = 0;
+	int items;
+	int a;
+	int state = 0;
 	data = cast(Atom*) get_prop_data (win, atom__NET_WM_STATE, XA_ATOM, &items);
 	if (data) {
-		for(a=0; a < items; a++) {
+		for(a=0; a < cast(int) items; a++) {
 			if(data[a] == atom__NET_WM_STATE_SHADED)
 				state |= STATE_SHADED;
 			if(data[a] == atom__NET_WM_STATE_SKIP_TASKBAR)
@@ -762,7 +763,7 @@ void set_prop (Window win, Atom at, long val) {
 taskbar * gui_create_taskbar () {
 	taskbar *tb;
 	Window win;
-	Atom type_atoms[1];
+	Atom[1] type_atoms;
 
 	XSizeHints size_hints;
 	XSetWindowAttributes att;
@@ -882,7 +883,7 @@ void gui_draw_task (taskbar * tb, task * tk) {
 		int text_x = x + TEXTPAD + TEXTPAD + ICONWIDTH;
 
 		/* check how many chars can fit */
-		len = strlen (tk.name);
+		len = cast(int) strlen (tk.name);
 		while (XTextWidth (xfs, tk.name, len) >= taskw - (text_x - x) - 2 && len > 0)
 			len--;
 
@@ -981,10 +982,11 @@ void taskbar_read_clientlist (taskbar * tb) {
 
 	Window* win;
 	Window focus_win;
-	int num, i, rev, desk, new_desk = 0;
+	int num;
+	int i, rev, desk, new_desk = 0;
 	task* list, next;
 
-	desk = find_desktop (root_win);
+	desk = cast(int) find_desktop (root_win);
 	if (desk != tb.my_desktop) {
 		new_desk = 1;
 		tb.my_desktop = desk;
@@ -1013,7 +1015,7 @@ void taskbar_read_clientlist (taskbar * tb) {
 		next = list.next;
 
 		if (!new_desk)
-			for (i = num - 1; i >= 0; i--)
+			for (i = cast(int) num - 1; i >= 0; i--)
 				if (list.win == win[i])
 					goto dontdel;
 		del_task (tb, list.win);
@@ -1031,7 +1033,8 @@ dontdel:
 	XFree (win);
 }
 
-void handle_press (taskbar * tb, int x, int y, int button) {
+Time lastRightPressTime = 0;
+void handle_press (taskbar * tb, int x, int y, int button, Time when) {
 	auto tk = tb.task_list;
 	while (tk) {
 		if (x > tk.pos_x && x < tk.pos_x + tk.width) {
@@ -1065,7 +1068,10 @@ void handle_press (taskbar * tb, int x, int y, int button) {
 					}
 				break;
 				case 3: // right button
-					client_msg(tk.win, atom__NET_CLOSE_WINDOW, 0, 0, 0, 0, 0);
+					// need to double right click to close because otherwise i accidentally hit it too much
+					if(when - lastRightPressTime < 350)
+						client_msg(tk.win, atom__NET_CLOSE_WINDOW, 0, 0, 0, 0, 0);
+					lastRightPressTime = when;
 				break;
 				/*
 				case 4: // scroll
@@ -1194,7 +1200,7 @@ Shaded changed
 
 	} else if (at == atom__NET_WM_DESKTOP) {
 		// Virtual desktop switch
-		int desk = find_desktop(tk.win);
+		int desk = cast(int) find_desktop(tk.win);
 		if(desk != 0xffffffff && desk != tb.my_desktop) {
 			del_task(tb, tk.win);
 			gui_draw_taskbar (tb);
@@ -1273,7 +1279,7 @@ void main() {
 			switch (ev.type) {
 				default: break;
 				case EventType.ButtonPress:
-					handle_press (tb, ev.xbutton.x, ev.xbutton.y, ev.xbutton.button);
+					handle_press (tb, ev.xbutton.x, ev.xbutton.y, ev.xbutton.button, ev.xbutton.time);
 				break;
 				case EventType.Expose:
 					gui_draw_taskbar(tb);
