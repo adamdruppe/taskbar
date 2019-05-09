@@ -20,6 +20,8 @@
 pragma(lib, "Xpm");
 import arsd.simpledisplay;
 
+int lastMiddleClick = 0;
+
 import core.stdc.stdlib;
 import core.stdc.string;
 import core.stdc.time;
@@ -31,6 +33,7 @@ struct task {
 	Window win;
 	Pixmap icon;
 	Pixmap mask;
+	int orderHint;
 	char* _name;
 	@property char* name() { return _name; }
 	@property char* name(char* v) {
@@ -738,14 +741,27 @@ void add_task (taskbar * tb, Window win, bool focus){
 	/* now append it to our linked list */
 	tb.num_tasks++;
 
+	auto data = cast(arch_ulong*) get_prop_data (win, GetAtom!("_ARSD_TB_ORDER", true)(dd), XA_CARDINAL, null);
+
+	tk.orderHint = data is null ? int.min : cast(int) *data;
+
 	auto list = tb.task_list;
 	if (!list) {
 		tb.task_list = tk;
 		return;
 	}
+
+	if(list.orderHint < tk.orderHint) {
+		tb.task_list = tk;
+		tk.next = list;
+		return;
+	}
+
 	while (1) {
-		if (!list.next) {
+		if (!list.next || list.next.orderHint < tk.orderHint) {
+			auto holder = list.next;
 			list.next = tk;
+			tk.next = holder;
 			return;
 		}
 		list = list.next;
@@ -756,7 +772,7 @@ void gui_sync () {
 	XSync (dd, false);
 }
 
-void set_prop (Window win, Atom at, long val) {
+void set_prop (Window win, Atom at, arch_long val) {
 	XChangeProperty (dd, win, at, XA_CARDINAL, 32, PropModeReplace, cast(ubyte *) &val, 1);
 }
 
@@ -1059,6 +1075,8 @@ void handle_press (taskbar * tb, int x, int y, int button, Time when) {
 								prev.next = current.next;
 								tk.next = tb.task_list;
 								tb.task_list = tk;
+								current.orderHint = lastMiddleClick;
+								set_prop(current.win, GetAtom!("_ARSD_TB_ORDER", true)(dd), lastMiddleClick++);
 								gui_draw_taskbar(tb);
 							}
 							return;
