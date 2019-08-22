@@ -13,15 +13,6 @@ void downscaleImage(scope ubyte[] data, in int originalWidth, in int originalHei
 	ubyte[] newImage;
 	auto newImageWidth = desiredWidth;
 	auto newImageHeight = desiredHeight;
-	{
-		auto size = desiredWidth * desiredHeight * bytesPerPixel;
-		auto tmpptr = cast(ubyte*) malloc(size);
-		if(tmpptr is null)
-			throw new Exception("malloc");
-		newImage = tmpptr[0 .. size];
-		newImage[] = 0;
-	}
-	scope(exit) free(newImage.ptr);
 
 	// maintain aspect ratio
 	if(originalWidth > originalHeight) {
@@ -32,13 +23,26 @@ void downscaleImage(scope ubyte[] data, in int originalWidth, in int originalHei
 		assert(desiredHeight > desiredWidth);
 	}
 
-	ubyte getOriginalByte(int x, int y, int offset) {
-		return data[(y * originalWidth + x) * bytesPerPixel + offset];
+	import std.stdio; writeln(desiredWidth, "x", desiredHeight);
+
+	{
+		auto size = desiredWidth * desiredHeight * bytesPerPixel;
+		auto tmpptr = cast(ubyte*) malloc(size);
+		if(tmpptr is null)
+			throw new Exception("malloc");
+		newImage = tmpptr[0 .. size];
+		newImage[] = 0;
+	}
+	scope(exit) free(newImage.ptr);
+
+
+	ubyte getOriginalByte(long x, long y, int offset) {
+		return data[cast(size_t) ((y * originalWidth + x) * bytesPerPixel + offset)];
 	}
 
-	int ix, iy;
-	immutable ixstep = originalWidth * 256 / desiredWidth;
-	immutable iystep = originalHeight * 256 / desiredHeight;
+	long ix, iy;
+	immutable ixstep = cast(long) originalWidth * 256 / desiredWidth;
+	immutable iystep = cast(long) originalHeight * 256 / desiredHeight;
 
 
 	int x, y, offset;
@@ -61,11 +65,12 @@ void downscaleImage(scope ubyte[] data, in int originalWidth, in int originalHei
 		}
 
 		auto remainderX = ixstep % 256;
+		auto remainderY = iystep % 256;
 		if(remainderX && ix / 256 + 1 < originalWidth) {
+			//import std.stdio; writeln(ix, " ", iy, " ", offset, " ", originalWidth,  " ", originalHeight);
 			sum += getOriginalByte(ix / 256 + 1, iy / 256 + 0, offset) * remainderX;
 			count += remainderX;
 		}
-		auto remainderY = iystep % 256;
 		if(remainderY && iy / 256 + 1 < originalHeight) {
 			sum += getOriginalByte(ix / 256 + 0, iy / 256 + 1, offset) * remainderY;
 			count += remainderY;
@@ -79,22 +84,28 @@ void downscaleImage(scope ubyte[] data, in int originalWidth, in int originalHei
 			x++;
 
 			ix += ixstep;
-			if(x == desiredWidth) {
+			if(x >= desiredWidth) {
 				x = 0;
 				y++;
 
 				ix = 0;
 				iy += iystep;
+
+				if(y >= desiredHeight)
+					break;
 			}
 		}
 	}
 
 	// save it back to the original image
 	int o = 0;
-	int oo = 0;
-	foreach(ylol; 0 .. newImageHeight) {
-		foreach(b; 0 .. newImageWidth * bytesPerPixel)
-			data[b + oo] = newImage[o++];
-		oo += originalHeight * bytesPerPixel;
+	int oo = ((newImageWidth - desiredWidth) / 2) * bytesPerPixel;
+	data[] = 0;
+	auto dp = desiredWidth * bytesPerPixel;
+	auto op = originalWidth * bytesPerPixel;
+	foreach(ylol; 0 .. desiredHeight) {
+		data[oo .. oo + dp] = newImage[o .. o + dp];
+		o += dp;
+		oo += op;
 	}
 }
