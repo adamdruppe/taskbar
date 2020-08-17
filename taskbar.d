@@ -1349,3 +1349,7 @@ void main() {
 
 	XCloseDisplay (dd);
 }
+
+pragma(lib, "Xpm");
+extern(C)
+int XpmCreatePixmapFromData(Display*, Drawable, in char**, Pixmap*, Pixmap*, void*);
