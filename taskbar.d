@@ -150,7 +150,7 @@ version(WithNotificationArea) {
 				id = e.data.l[2];
 				if (id) {
 					icon_add(tb, id);
-					import std.stdio; writefln("Window %x", id);
+					//import std.stdio; writefln("Window %x", id);
 					XSelectInput(dd, id, EventMask.StructureNotifyMask);
 				}
 			break;
@@ -259,7 +259,7 @@ struct taskbar {
 	Window win;
 	task* task_list;
 	int num_tasks;
-	int my_desktop;
+	uint my_desktop;
 
 	void drawClock() {
 		int x = clockPosition();
@@ -642,7 +642,7 @@ void get_task_netwmicon (task *tk) {
 	}
 }
 
-arch_ulong find_desktop (Window win) {
+uint find_desktop (Window win) {
 	arch_ulong desk = 0;
 	arch_ulong *data;
 
@@ -655,7 +655,7 @@ arch_ulong find_desktop (Window win) {
 		desk = *data;
 		XFree (data);
 	}
-	return desk;
+	return cast(uint) desk;
 }
 
 int is_iconified (Window win) {
@@ -999,10 +999,11 @@ void taskbar_read_clientlist (taskbar * tb) {
 	Window* win;
 	Window focus_win;
 	int num;
-	int i, rev, desk, new_desk = 0;
+	int i, rev;
+	uint desk, new_desk = 0;
 	task* list, next;
 
-	desk = cast(int) find_desktop (root_win);
+	desk = find_desktop (root_win);
 	if (desk != tb.my_desktop) {
 		new_desk = 1;
 		tb.my_desktop = desk;
@@ -1218,7 +1219,7 @@ Shaded changed
 
 	} else if (at == atom__NET_WM_DESKTOP) {
 		// Virtual desktop switch
-		int desk = cast(int) find_desktop(tk.win);
+		auto desk = find_desktop(tk.win);
 		if(desk != 0xffffffff && desk != tb.my_desktop) {
 			del_task(tb, tk.win);
 			gui_draw_taskbar (tb);
