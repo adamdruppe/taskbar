@@ -11,6 +11,8 @@
 	              https://github.com/adamdruppe/arsd
 *********************************************************/
 
+// quick launch and pinned things are separaet features fyi
+
 /*
 	I want to add notification support like
 	xfce4-notifyd but done with my own thing
@@ -203,7 +205,7 @@ version(WithNotificationArea) {
 
 		/* position and size the icon window */
 		XMoveResizeWindow(dd, notification_area_window.id,
-				notification_area_window.x, 0, ICONWIDTH, ICONHEIGHT);
+				notification_area_window.x, WINHEIGHT - TASKHEIGHT, ICONWIDTH, ICONHEIGHT);
 
 		/* show the window */
 		XMapRaised(dd, notification_area_window.id);
@@ -217,7 +219,7 @@ version(WithNotificationArea) {
 		while(current) {
 			current.x = pos;
 
-			XMoveWindow(dd, current.id, current.x, 0);
+			XMoveWindow(dd, current.id, current.x, WINHEIGHT - TASKHEIGHT);
 
 			current = current.next;
 			pos += ICONWIDTH;
@@ -322,7 +324,8 @@ enum MAX_TASK_WIDTH = 145;//WINWIDTH
 
 enum ICONWIDTH = 16;
 enum ICONHEIGHT = 16;
-enum WINHEIGHT = 16;//24
+enum TASKHEIGHT = 16;
+enum WINHEIGHT = 32;//24
 auto WINWIDTH() { return (scr_width == 2560) ? 1280 : scr_width; }
 enum XPOS = 0;
 auto YPOS() { return (scr_height - WINHEIGHT); }
@@ -455,11 +458,11 @@ void set_foreground (int index) {
 }
 
 void draw_line (taskbar *tb, int x, int y, int a, int b) {
-	XDrawLine (dd, tb.win, fore_gc, x, y, a, b);
+	XDrawLine (dd, tb.win, fore_gc, x, y + (WINHEIGHT - TASKHEIGHT), a, b + (WINHEIGHT - TASKHEIGHT));
 }
 
 void fill_rect (taskbar *tb, int x, int y, int a, int b) {
-	XFillRectangle (dd, tb.win, fore_gc, x, y, a, b);
+	XFillRectangle (dd, tb.win, fore_gc, x, y + WINHEIGHT - TASKHEIGHT, a, b - (WINHEIGHT - TASKHEIGHT));
 }
 
 void scale_icon (task *tk) {
@@ -845,7 +848,7 @@ void gui_init () {
 		fontname = "fixed";
 	} while (!xfs);
 
-	text_y = xfs.ascent + ((WINHEIGHT - xfs.ascent) / 2);
+	text_y = xfs.ascent + (((TASKHEIGHT) - xfs.ascent) / 2) + (WINHEIGHT - TASKHEIGHT);
 
 	gcv.font = xfs.fid;
 	gcv.graphics_exposures = false;
@@ -856,9 +859,9 @@ void gui_init () {
 
 void gui_draw_vline (taskbar * tb, int x) {
 	set_foreground (4);
-	draw_line (tb, x, 0, x, WINHEIGHT);
+	draw_line (tb, x, 0, x, TASKHEIGHT);
 	set_foreground (3);
-	draw_line (tb, x + 1, 0, x + 1, WINHEIGHT);
+	draw_line (tb, x + 1, 0, x + 1, TASKHEIGHT);
 }
 
 void gui_draw_task (taskbar * tb, task * tk) {
@@ -875,7 +878,7 @@ void gui_draw_task (taskbar * tb, task * tk) {
 	draw_line (tb, x + 1, 0, x + taskw, 0);
 
 	set_foreground (1);
-	draw_line (tb, x + 1, WINHEIGHT - 1, x + taskw, WINHEIGHT - 1);
+	draw_line (tb, x + 1, TASKHEIGHT - 1, x + taskw, TASKHEIGHT - 1);
 
 	if (tk.focused) {
 		x++;
@@ -883,13 +886,13 @@ void gui_draw_task (taskbar * tb, task * tk) {
 
 		fill_rect (tb, x + 3, 3, taskw - 5, WINHEIGHT - 6);
 		set_foreground (3);		  /* white */
-		draw_line (tb, x + 2, WINHEIGHT - 2, x + taskw - 2, WINHEIGHT - 2);
-		draw_line (tb, x + taskw - 2, 2, x + taskw - 2, WINHEIGHT - 2);
+		draw_line (tb, x + 2, TASKHEIGHT - 2, x + taskw - 2, TASKHEIGHT - 2);
+		draw_line (tb, x + taskw - 2, 2, x + taskw - 2, TASKHEIGHT - 2);
 		set_foreground (0);
-		draw_line (tb, x + 1, 2, x + 1, WINHEIGHT - 2);
+		draw_line (tb, x + 1, 2, x + 1, TASKHEIGHT - 2);
 		set_foreground (4);		  /* darkest gray */
 		draw_line (tb, x + 2, 2, x + taskw - 2, 2);
-		draw_line (tb, x + 2, 2, x + 2, WINHEIGHT - 3);
+		draw_line (tb, x + 2, 2, x + 2, TASKHEIGHT - 3);
 	} else {
 		set_foreground (tk.demands_attention ? 6 : 0);		  /* mid gray */
 		fill_rect (tb, x + 2, 1, taskw - 1, WINHEIGHT - 2);
@@ -922,15 +925,128 @@ void gui_draw_task (taskbar * tb, task * tk) {
 
 	/* draw the task's icon */
 	XSetClipMask (dd, fore_gc, tk.mask);
-	XSetClipOrigin (dd, fore_gc, x + TEXTPAD, (WINHEIGHT - ICONHEIGHT) / 2);
+	XSetClipOrigin (dd, fore_gc, x + TEXTPAD, (TASKHEIGHT - ICONHEIGHT) / 2 + (WINHEIGHT - TASKHEIGHT));
 	XCopyArea (dd, tk.icon, tb.win, fore_gc, 0, 0, ICONWIDTH, ICONHEIGHT,
-				  x + TEXTPAD, (WINHEIGHT - ICONHEIGHT) / 2);
+				  x + TEXTPAD, (TASKHEIGHT - ICONHEIGHT) / 2 + (WINHEIGHT - TASKHEIGHT));
 	XSetClipMask (dd, fore_gc, None);
+}
+
+string active_notification = "";
+string active_todo = "";
+	int current_todo = 0;
+string active_scheduler = "go to bed @ 11pm";
+
+void update_active_todo() {
+	if(current_todo < 0)
+		current_todo = 0;
+	import core.stdc.stdio;
+
+	auto fp = fopen("/home/me/taskbar-todo.txt", "rt");
+	if(fp is null) {
+		active_todo = "";
+		current_todo = 0;
+		return;
+	}
+	scope(exit)
+		fclose(fp);
+
+	int line = 0;
+	bool found;
+	bool skipLine;
+
+	int c = fgetc(fp);
+
+	string lineContent;
+
+	while(!feof(fp)) {
+		if(found) {
+			if(c == '\n') {
+				if(line == current_todo) {
+					set_notification_bar_item(active_todo = lineContent, WINWIDTH / 4);
+					return;
+				}
+				line++;
+				found = false;
+			} else {
+				if(line == current_todo) {
+					lineContent ~= c;
+				}
+			}
+		} else {
+			if(c == ' ' || c == '\t') {
+				skipLine = true;
+			} else	if(c == '\n') {
+				skipLine = false;
+			} else if(!skipLine) {
+				found = true;
+				if(line == current_todo) {
+					lineContent ~= c;
+				}
+			}
+		}
+		c = fgetc(fp);
+	}
+
+	active_todo = "<eof>";
+	current_todo = line;
+}
+
+void set_notification_bar_item(ref string active_item, int maxWidth) {
+	int anl = cast(int) active_item.length;
+	auto oanl = anl;
+
+	auto MAX = 255;
+	if(anl > MAX)
+		anl = MAX; // really I'm sure this is as high as it can go anyway
+
+	// FIXME: I should be able to binary search this or something
+	while(true) {
+		auto wid = XTextWidth(xfs, active_item.ptr, anl);
+		auto diff = wid - maxWidth;
+		if(diff > 0) {
+			anl--;
+			if(diff > 50 && anl > 9)
+				anl -= 9;
+		} else
+			break;
+	}
+
+	active_item = active_item[0 .. anl];
+
+	while(active_item.length && (
+		active_item[$-1] > 127 ||
+		active_item[$-1] == '\n' ||
+		active_item[$-1] == '\r' ||
+		active_item[$-1] == '\t'
+	))
+		active_item = active_item[0 .. $ - 1];
+
+	if(anl != oanl)
+	active_item ~= "...";
+}
+
+/* mouse wheel goes through the todo list! */
+
+void draw_notification_bar(taskbar* tb) {
+
+	set_foreground(0);
+	XFillRectangle (dd, tb.win, fore_gc, 0, 0, WINWIDTH, WINHEIGHT - TASKHEIGHT);
+
+	set_foreground(5);
+	XDrawString (dd, tb.win, fore_gc, 4, xfs.ascent + 1, active_notification.ptr, cast(int) active_notification.length);
+	XDrawString (dd, tb.win, fore_gc, WINWIDTH / 2, xfs.ascent + 1, active_todo.ptr, cast(int) active_todo.length);
+
+	auto wid = XTextWidth(xfs, active_scheduler.ptr, cast(int) active_scheduler.length);
+	// WINWIDTH * 3 / 4 is the start position on the left really
+
+	XDrawString (dd, tb.win, fore_gc, WINWIDTH - 4 - wid, xfs.ascent + 1, active_scheduler.ptr, cast(int) active_scheduler.length);
 }
 
 void gui_draw_taskbar(taskbar * tb) {
 	auto width = notificationAreaPosition();
 	auto x = 0;
+
+	draw_notification_bar(tb);
 
 	if(tb.num_tasks) {
 		auto taskw = width / tb.num_tasks;
@@ -1052,6 +1168,38 @@ dontdel:
 
 Time lastRightPressTime = 0;
 void handle_press (taskbar * tb, int x, int y, int button, Time when) {
+
+	if(y < (WINHEIGHT - TASKHEIGHT)) {
+		// not in the taskbar zone
+
+		if(x < WINWIDTH / 2) {
+			// notification area
+		} else if( x < WINWIDTH * 3 / 4) {
+			// todo list area
+			switch(button) {
+				case 1:
+				case 2:
+				case 3:
+					break;
+				case 4:
+					current_todo--;
+					update_active_todo();
+					draw_notification_bar(tb);
+					break;
+				case 5:
+					current_todo++;
+					update_active_todo();
+					draw_notification_bar(tb);
+					break;
+				default:
+			}
+		} else {
+			// scheduler area
+		}
+
+		return;
+	}
+
 	auto tk = tb.task_list;
 	while (tk) {
 		if (x > tk.pos_x && x < tk.pos_x + tk.width) {
@@ -1279,6 +1427,23 @@ void main() {
 
 	int lastSeconds = 0;
 
+	// for the task list i want... well nothing really it replies to clicks
+	// the scheduler needs an inotify ideally and prolly a timer fd too.
+	// and the unix domain for notifications
+
+	import std.socket;
+
+	update_active_todo();
+
+	auto socket = new Socket(AddressFamily.UNIX, SocketType.DGRAM);
+	socket.bind(new UnixAddress("\0arsd/notification"));
+
+	int sfd = socket.handle;
+
+	char[1024] buffer;
+	Address from;
+	bool notificationTimingOut = false;
+
 	while (1) {
 		now = time (null);
 		lt = gmtime (&now);
@@ -1288,9 +1453,39 @@ void main() {
 		tv.tv_sec = 60 - lt.tm_sec;
 		FD_ZERO (&fd);
 		FD_SET (xfd, &fd);
-		if (select (xfd + 1, &fd, null, null, &tv) == 0) {
+
+		auto maxfd = xfd;
+		{ // for my notifications
+			FD_SET (sfd, &fd);
+			if(sfd > maxfd)
+				maxfd = sfd;
+
+			if(notificationTimingOut)
+				tv.tv_sec = 5;
+		}
+
+		if (select (maxfd + 1, &fd, null, null, &tv) == 0) {
 			tb.drawClock();
 			lastSeconds = lt.tm_sec;
+
+			{ // for notification
+			if(notificationTimingOut)
+				active_notification = "";
+			draw_notification_bar(tb);
+			XFlush(dd);
+			notificationTimingOut = false;
+			continue;
+			}
+		}
+
+		if(FD_ISSET(sfd, &fd)) {
+			auto value = socket.receiveFrom(buffer[], from);
+			if(value > 0) {
+				set_notification_bar_item(active_notification = buffer[0 .. value].idup, WINWIDTH / 2 - 20);
+
+				draw_notification_bar(tb);
+				notificationTimingOut = true;
+			}
 		}
 
 		while (XPending (dd)) {
@@ -1350,6 +1545,5 @@ void main() {
 	XCloseDisplay (dd);
 }
 
-pragma(lib, "Xpm");
 extern(C)
 int XpmCreatePixmapFromData(Display*, Drawable, in char**, Pixmap*, Pixmap*, void*);

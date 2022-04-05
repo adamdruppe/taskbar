@@ -23,7 +23,7 @@ void downscaleImage(scope ubyte[] data, in int originalWidth, in int originalHei
 		assert(desiredHeight > desiredWidth);
 	}
 
-	import std.stdio; writeln(desiredWidth, "x", desiredHeight);
+	//import std.stdio; writeln(desiredWidth, "x", desiredHeight);
 
 	{
 		auto size = desiredWidth * desiredHeight * bytesPerPixel;
